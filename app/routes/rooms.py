@@ -39,7 +39,7 @@ async def get_all_rooms():
         room["_id"] = str(room["_id"])
     return rooms
 
-@router.get("/hotel/{hotel_id}")
+@router.get("/findHotel/{hotel_id}")
 async def get_hotel_rooms(hotel_id: str):
     try:
         hotel = await db.hotels.find_one({"_id": ObjectId(hotel_id)})
