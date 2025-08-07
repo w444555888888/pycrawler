@@ -1,42 +1,25 @@
-from fastapi import APIRouter, HTTPException, Request, Response
-from app.models.user import User
-from app.schemas.user import UserCreate, UserLogin
-from app.core.security import hash_password, verify_password, create_access_token
-from bson import ObjectId
-import os
+# app/routes/auth.py
+from fastapi import APIRouter
+from app.services import auth_service
 
-router = APIRouter()
+router = APIRouter(prefix="/auth", tags=["auth"])
 
 @router.post("/register")
-async def register(user: UserCreate):
-    if await User.find_one({"$or": [{"username": user.username}, {"email": user.email}]}):
-        raise HTTPException(status_code=400, detail="此帳號或信箱已被註冊")
-
-    hashed = hash_password(user.password)
-    user_dict = user.dict()
-    user_dict["password"] = hashed
-    result = await User.insert_one(user_dict)
-    user_dict["_id"] = str(result.inserted_id)
-    del user_dict["password"]
-    return user_dict
+async def register(data: dict):
+    return await auth_service.register(data)
 
 @router.post("/login")
-async def login(user: UserLogin, response: Response):
-    user_data = await User.find_one({"$or": [{"username": user.account}, {"email": user.account}]})
-    if not user_data or not verify_password(user.password, user_data["password"]):
-        raise HTTPException(status_code=404, detail="帳號或密碼錯誤")
+async def login(data: dict):
+    return await auth_service.login(data)
 
-    token = create_access_token({"id": str(user_data["_id"]), "isAdmin": user_data.get("isAdmin", False)})
-    response.set_cookie(key="JWT_token", value=token, httponly=False, path="/", max_age=7*86400)
-    user_data["_id"] = str(user_data["_id"])
-    del user_data["password"]
-    return {"userDetails": user_data}
+@router.get("/verify-token")
+async def verify_token(token: str):
+    return await auth_service.verify_token(token)
 
-@router.get("/me")
-async def get_me(request: Request):
-    return request.state.user
+@router.post("/forgot-password")
+async def forgot_password(data: dict):
+    return await auth_service.forgot_password(data)
 
-@router.post("/logout")
-async def logout(response: Response):
-    response.delete_cookie("JWT_token")
-    return {"message": "已登出"}
+@router.post("/reset-password")
+async def reset_password(data: dict):
+    return await auth_service.reset_password(data)

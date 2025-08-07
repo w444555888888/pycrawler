@@ -1,67 +1,73 @@
+from datetime import datetime, date, timedelta
+from typing import List, Literal, Optional
 from pydantic import BaseModel, Field
-from typing import List, Optional
-from datetime import datetime, timedelta
+from beanie import Document, PydanticObjectId
+from dateutil.parser import parse as parse_date
 
-class PaymentOption(BaseModel):
-    type: str
-    description: str
-    refundable: bool = False
 
-class PricingOption(BaseModel):
-    days_of_week: List[int]  # 0=Sunday
-    price: float
-
-class HolidayPrice(BaseModel):
-    date: str  # YYYY-MM-DD
-    price: float
-
-class ServiceOptions(BaseModel):
+class Service(BaseModel):
     parking: bool = False
     dinner: bool = False
     breakfast: bool = True
 
-class RoomBase(BaseModel):
+
+class PaymentOption(BaseModel):
+    type: Literal['credit_card', 'paypal', 'bank_transfer', 'on_site_payment']
+    description: str
+    refundable: bool = False
+
+
+class WeekdayPricing(BaseModel):
+    days_of_week: List[int]  # 0 ~ 6
+    price: float
+
+
+class HolidayPricing(BaseModel):
+    date: str  # e.g. "2025-12-25"
+    price: float
+
+
+class Room(Document):
     title: str
     desc: List[str]
-    roomType: str
-    maxPeople: int
-    service: ServiceOptions
-    hotelId: str
-    paymentOptions: List[PaymentOption]
-    pricing: List[PricingOption]
-    holidays: List[HolidayPrice]
+    room_type: Literal['Single Room', 'Double Room', 'Twin Room', 'Family Room', 'Deluxe Room']
+    max_people: int
+    service: Service = Service()
+    hotel_id: PydanticObjectId
+    payment_options: List[PaymentOption]
+    pricing: List[WeekdayPricing]
+    holidays: List[HolidayPricing]
 
-class RoomInDB(RoomBase):
-    id: str = Field(..., alias="_id")
+    created_at: Optional[datetime] = Field(default_factory=datetime.utcnow)
+    updated_at: Optional[datetime] = Field(default_factory=datetime.utcnow)
 
-# 價格計算函式（根據 startDate, endDate）
-def calculate_total_price(room: RoomBase, start_date: str, end_date: str) -> float:
-    try:
-        current = datetime.strptime(start_date, "%Y-%m-%d")
-        end = datetime.strptime(end_date, "%Y-%m-%d")
-    except Exception:
-        return 0
+    class Settings:
+        name = "rooms"
 
-    total_price = 0
+    def update_timestamp(self):
+        self.updated_at = datetime.utcnow()
 
-    while current < end:
-        date_str = current.strftime("%Y-%m-%d")
+    def calculate_total_price(self, start_date: str, end_date: str) -> float:
+        total_price = 0.0
+        current_date = parse_date(start_date).date()
+        end_date_obj = parse_date(end_date).date()
 
-        # Python 的 weekday() 回傳 0=星期一，6=星期日 7會超過
-        # 為了符合 JS 或資料庫中使用的 0=星期日 格式，我們用 (weekday + 1) % 7 做轉換
-        weekday = (current.weekday() + 1) % 7  
+        while current_date < end_date_obj:
+            date_str = current_date.isoformat()
+            day_of_week = current_date.weekday()
 
-        # 假日優先
-        holiday = next((h for h in room.holidays if h.date == date_str), None)
-        if holiday:
-            total_price += holiday.price
-        else:
-            matched_price = next(
-                (p.price for p in room.pricing if weekday in p.days_of_week),
-                0
-            )
-            total_price += matched_price
+            # 1. check holiday
+            holiday_price = next((h.price for h in self.holidays if h.date == date_str), None)
 
-        current += timedelta(days=1)
+            if holiday_price is not None:
+                total_price += holiday_price
+            else:
+                # 2. weekday price
+                for p in self.pricing:
+                    if day_of_week in p.days_of_week:
+                        total_price += p.price
+                        break
 
-    return total_price
+            current_date += timedelta(days=1)
+
+        return total_price
