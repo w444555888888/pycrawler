@@ -7,7 +7,7 @@ import logging
 
 from app.core.config import settings
 from app.db import init_db
-from app.routes import hotels
+from app.routes import hotels, rooms, auth, users
 
 # 建立 FastAPI 實例
 app = FastAPI(title="Hotel Booking API")
@@ -25,7 +25,10 @@ app.add_middleware(
 )
 
 # 路由註冊
-app.include_router(hotels.router, prefix="/api/v1/hotels", tags=["Hotels"])
+app.include_router(hotels.router, prefix="/api/v1/hotels")
+app.include_router(rooms.router, prefix="/api/v1/rooms")
+app.include_router(auth.router, prefix="/api/v1/auth")  
+app.include_router(users.router, prefix="/api/v1/users") 
 
 # 全域錯誤處理
 @app.exception_handler(Exception)
