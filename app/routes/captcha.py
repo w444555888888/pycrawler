@@ -2,7 +2,7 @@
 from fastapi import APIRouter
 from app.services import captcha_service
 
-router = APIRouter(prefix="/captcha", tags=["captcha"])
+router = APIRouter(tags=["captcha"])
 
 @router.get("/initCaptcha")
 async def route_init():

@@ -8,7 +8,7 @@ from app.services.order_service import (
     delete_order,
 )
 
-router = APIRouter(prefix="/orders", tags=["orders"])
+router = APIRouter(tags=["orders"])
 
 #全部訂單
 @router.get("/")

@@ -8,7 +8,7 @@ from app.services.user_service import (
 from app.services.auth_service import verify_token
 from app.models.user import User
 
-router = APIRouter(prefix="/users", tags=["users"])
+router = APIRouter(tags=["users"])
 
 #全部用戶資料
 @router.get("/")

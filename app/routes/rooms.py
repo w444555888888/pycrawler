@@ -9,7 +9,7 @@ from app.services.room_service import (
     calculate_room_price   
 )
 
-router = APIRouter(prefix="/rooms", tags=["rooms"])
+router = APIRouter(tags=["rooms"])
 
 # 取得所有房型列表
 @router.get("/")

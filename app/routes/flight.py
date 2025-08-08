@@ -12,7 +12,7 @@ from app.services.flight_service import (
 )
 from app.services.auth_service import verify_token
 
-router = APIRouter(prefix="/api/v1/flights", tags=["flights"])
+router = APIRouter(tags=["flights"])
 
 # ----------- Flight 相關 -----------
 @router.get("/")

@@ -1,7 +1,6 @@
 from fastapi.responses import JSONResponse
 from fastapi import Request, HTTPException
 from fastapi.exceptions import RequestValidationError
-from app.utils.error_message import ErrorMessage
 
 
 def http_error_handler(request: Request, exc: HTTPException):

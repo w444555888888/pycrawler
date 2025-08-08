@@ -9,7 +9,7 @@ from app.services.auth_service import (
     verify_token
 )
 
-router = APIRouter()
+router = APIRouter(tags=["auth"])
 
 
 @router.post("/register")

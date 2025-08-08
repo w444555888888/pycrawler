@@ -1,15 +1,15 @@
-from datetime import datetime, date
+from datetime import datetime
 from typing import List, Optional, Literal
 from pydantic import BaseModel, Field
-from beanie import Document, Indexed, PydanticObjectId, before_event
-from utils.flight_time import calculate_arrival_date
+from beanie import Document, Indexed, before_event, Insert  
+from app.utils.flight_time_util import calculate_arrival_date
 
 
 class CabinClass(BaseModel):
     category: Literal['ECONOMY', 'BUSINESS', 'FIRST']
-    base_price: float
-    total_seats: int
-    booked_seats: int = 0
+    base_price: float = Field(alias="basePrice")
+    total_seats: int = Field(alias="totalSeats")
+    booked_seats: int = Field(default=0, alias="bookedSeats")
 
 
 class PeakSeasonPeriod(BaseModel):
@@ -19,38 +19,41 @@ class PeakSeasonPeriod(BaseModel):
 
 
 class EarlyBirdDiscount(BaseModel):
-    days_in_advance: int = 30
+    days_in_advance: int = Field(default=30, alias="daysInAdvance")
     discount: float = 0.9
 
 
 class PriceRules(BaseModel):
-    peak_season_dates: List[PeakSeasonPeriod] = []
-    holiday_multiplier: float = 1.1
-    early_bird_discount: EarlyBirdDiscount = EarlyBirdDiscount()
+    peak_season_dates: List[PeakSeasonPeriod] = Field(default=[], alias="peakSeasonDates")
+    holiday_multiplier: float = Field(default=1.1, alias="holidayMultiplier")
+    early_bird_discount: EarlyBirdDiscount = Field(default_factory=EarlyBirdDiscount, alias="earlyBirdDiscount")
 
 
 class Schedule(BaseModel):
-    departure_date: datetime
-    arrival_date: Optional[datetime] = None
-    available_seats: dict[str, int]
+    departure_date: datetime = Field(alias="departureDate")
+    arrival_date: Optional[datetime] = Field(default=None, alias="arrivalDate")
+    available_seats: dict[str, int] = Field(alias="availableSeats")
     prices: dict[str, float]
 
 
 class Route(BaseModel):
-    departure_city: str
-    arrival_city: str
-    flight_duration: int  # minutes or hours
+    departure_city: str = Field(alias="departureCity")
+    arrival_city: str = Field(alias="arrivalCity")
+    flight_duration: int = Field(alias="flightDuration")
 
 
 class Flight(Document):
-    flight_number: Indexed(str, unique=True)
+    flight_number: Indexed(str, unique=True) = Field(alias="flightNumber")
     route: Route
-    cabin_classes: List[CabinClass]
-    price_rules: PriceRules = PriceRules()
-    schedules: List[Schedule] = []
+    cabin_classes: List[CabinClass] = Field(alias="cabinClasses")
+    price_rules: PriceRules = Field(default_factory=PriceRules, alias="priceRules")
+    schedules: List[Schedule] = Field(default=[], alias="schedules")
 
     class Settings:
         name = "flights"
+
+    class Config:
+        populate_by_name = True
 
     async def calculate_final_price(self, category: str, departure_date: datetime) -> float:
         base_price = next((c.base_price for c in self.cabin_classes if c.category == category), 0)
@@ -74,13 +77,23 @@ class Flight(Document):
 
         return base_price * multiplier
 
-    @before_event("insert")
-    async def compute_arrival_dates(self):
-        for schedule in self.schedules:
-            if not schedule.arrival_date:
-                schedule.arrival_date = await calculate_arrival_date(
-                    schedule.departure_date,
+    @before_event(Insert)
+    async def fill_schedule_arrival_dates(self):
+        updated_schedules = []
+        for s in self.schedules:
+            if s.arrival_date is None:
+                arrival_date = await calculate_arrival_date(
+                    s.departure_date,
                     self.route.flight_duration,
                     self.route.departure_city,
                     self.route.arrival_city
                 )
+                updated_schedules.append(Schedule(
+                    departure_date=s.departure_date,
+                    arrival_date=arrival_date,
+                    available_seats=s.available_seats,
+                    prices=s.prices
+                ))
+            else:
+                updated_schedules.append(s)
+        self.schedules = updated_schedules
