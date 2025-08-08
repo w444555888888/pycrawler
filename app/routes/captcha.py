@@ -4,10 +4,10 @@ from app.services import captcha_service
 
 router = APIRouter(prefix="/captcha", tags=["captcha"])
 
-@router.get("/init")
-async def init():
+@router.get("/initCaptcha")
+async def route_init():
     return await captcha_service.init()
 
-@router.post("/check")
-async def check(data: dict):
+@router.post("/verifyCaptcha")
+async def route_check(data: dict):
     return await captcha_service.check(data)

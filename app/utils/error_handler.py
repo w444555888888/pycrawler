@@ -4,17 +4,24 @@ from fastapi.exceptions import RequestValidationError
 from app.utils.error_message import ErrorMessage
 
 
-def http_error_handler(request: Request, exc: Exception):
+def http_error_handler(request: Request, exc: HTTPException):
     return JSONResponse(
-        status_code=500,
-        content={"code": 500, "message": str(exc)}
+        status_code=exc.status_code,
+        content={
+            "success": False,
+            "message": str(exc.detail),
+            "data": {}
+        }
     )
-
 
 def validation_exception_handler(request: Request, exc: RequestValidationError):
     return JSONResponse(
         status_code=422,
-        content={"code": 422, "message": ErrorMessage.PARAM_ERROR, "details": exc.errors()}
+        content={
+            "success": False,
+            "message": "參數錯誤",
+            "data": exc.errors()
+        }
     )
 
 

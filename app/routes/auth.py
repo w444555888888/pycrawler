@@ -1,25 +1,49 @@
-# app/routes/auth.py
-from fastapi import APIRouter
-from app.services import auth_service
+from fastapi import APIRouter, Request
+from app.services.auth_service import (
+    register,
+    login,
+    forgot_password,
+    reset_password,
+    me,
+    logout,
+    verify_token
+)
 
-router = APIRouter(prefix="/auth", tags=["auth"])
+router = APIRouter()
+
 
 @router.post("/register")
-async def register(data: dict):
-    return await auth_service.register(data)
+async def route_register(request: Request):
+    data = await request.json()
+    return await register(data)
+
 
 @router.post("/login")
-async def login(data: dict):
-    return await auth_service.login(data)
+async def route_login(request: Request):
+    data = await request.json()
+    return await login(data)
 
-@router.get("/verify-token")
-async def verify_token(token: str):
-    return await auth_service.verify_token(token)
 
 @router.post("/forgot-password")
-async def forgot_password(data: dict):
-    return await auth_service.forgot_password(data)
+async def route_forgot_password(request: Request):
+    data = await request.json()
+    return await forgot_password(data)
 
-@router.post("/reset-password")
-async def reset_password(data: dict):
-    return await auth_service.reset_password(data)
+
+@router.post("/reset-password/{token}")
+async def route_reset_password(token: str, request: Request):
+    data = await request.json()
+    new_password = data.get("password") 
+    return await reset_password(token, new_password)
+
+
+@router.get("/me")
+async def route_me(request: Request):
+    verify_token(request)  # 驗證 JWT，失敗會自動 raise HTTPException
+    return me(request)
+
+
+@router.post("/logout")
+async def route_logout(request: Request):
+    verify_token(request)  # 先驗證，再執行 logout
+    return logout()

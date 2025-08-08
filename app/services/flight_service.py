@@ -3,6 +3,7 @@ from datetime import datetime
 from app.models.flight import Flight
 from app.models.flight_order import FlightOrder
 from app.utils.response import success
+from app.utils.error_handler import raise_error
 from app.utils.flight_time_util import calculate_arrival_date
 from app.utils.flight_duration import calculate_flight_duration
 from app.utils.timezone import get_time_zone_by_city
@@ -17,24 +18,24 @@ async def create_flight(data: dict):
     flight_number = data.get("flightNumber")
     existing = await Flight.find_one(Flight.flightNumber == flight_number)
     if existing:
-        raise HTTPException(status_code=400, detail="flightNumber已存在")
+        raise_error(400, "flightNumber已存在")
 
     route = data.get("route")
     schedules = data.get("schedules", [])
     cabin_classes = data.get("cabinClasses")
     if not cabin_classes:
-        raise HTTPException(status_code=400, detail="缺少 cabinClasses")
+        raise_error(400, "缺少 cabinClasses")
 
     departure_city = route.get("departureCity")
     arrival_city = route.get("arrivalCity")
 
     tz = get_time_zone_by_city(departure_city)
     if not tz:
-        raise HTTPException(status_code=404, detail=f"找不到城市時區資訊：{departure_city}")
+        raise_error(404, f"找不到城市時區資訊：{departure_city}")
 
     duration = calculate_flight_duration(departure_city, arrival_city)
     if not duration:
-        raise HTTPException(status_code=400, detail="無法自動推算 flightDuration，請確認城市名稱是否正確")
+        raise_error(400, "無法自動推算 flightDuration，請確認城市名稱是否正確")
 
     route["flightDuration"] = duration
 
@@ -57,14 +58,14 @@ async def create_flight(data: dict):
 async def get_flight(flight_id: str):
     flight = await Flight.get(flight_id)
     if not flight:
-        raise HTTPException(status_code=404, detail="找不到該航班")
+        raise_error(404, "找不到該航班")
     return success(flight)
 
 
 async def update_flight(flight_id: str, data: dict):
     flight = await Flight.get(flight_id)
     if not flight:
-        raise HTTPException(status_code=404, detail="找不到該航班")
+        raise_error(404, "找不到該航班")
 
     route = data.get("route", {})
     cabin_classes = data.get("cabinClasses")
@@ -73,7 +74,7 @@ async def update_flight(flight_id: str, data: dict):
     if "departureCity" in route:
         tz = get_time_zone_by_city(route["departureCity"])
         if not tz:
-            raise HTTPException(status_code=400, detail=f"找不到城市時區資訊：{route['departureCity']}")
+            raise_error(400, f"找不到城市時區資訊：{route['departureCity']}")
         flight.route["departureCity"] = route["departureCity"]
 
     if cabin_classes:
@@ -82,7 +83,7 @@ async def update_flight(flight_id: str, data: dict):
     if route.get("departureCity") and route.get("arrivalCity"):
         duration = calculate_flight_duration(route["departureCity"], route["arrivalCity"])
         if not duration:
-            raise HTTPException(status_code=400, detail="無法自動推算 flightDuration，請確認城市名稱是否正確")
+            raise_error(400, "無法自動推算 flightDuration，請確認城市名稱是否正確")
         flight.route["flightDuration"] = duration
         flight.route["arrivalCity"] = route["arrivalCity"]
 
@@ -105,7 +106,7 @@ async def update_flight(flight_id: str, data: dict):
 async def delete_flight(flight_id: str):
     flight = await Flight.get(flight_id)
     if not flight:
-        raise HTTPException(status_code=404, detail="找不到該航班")
+        raise_error(404, "找不到該航班")
     await flight.delete()
     return success(flight)
 
@@ -119,18 +120,18 @@ async def create_flight_order(data: dict, user_id: str):
     passengers = data.get("passengerInfo")
 
     if not all([flight_id, category, schedule_id, passengers]):
-        raise HTTPException(status_code=400, detail="缺少必要的訂單信息")
+        raise_error(400, "缺少必要的訂單信息")
 
     flight = await Flight.get(flight_id)
     if not flight:
-        raise HTTPException(status_code=404, detail="找不到該航班")
+        raise_error(404, "找不到該航班")
 
     schedule = next((s for s in flight.schedules if str(s["_id"]) == schedule_id), None)
     if not schedule:
-        raise HTTPException(status_code=404, detail="找不到該航班班次")
+        raise_error(404, "找不到該航班班次")
 
     if schedule["availableSeats"].get(category, 0) < len(passengers):
-        raise HTTPException(status_code=400, detail="座位數量不足")
+        raise_error(400, "座位數量不足")
 
     existing_order = await FlightOrder.find_one({
         "userId": user_id,
@@ -139,7 +140,7 @@ async def create_flight_order(data: dict, user_id: str):
         "status": "PENDING"
     })
     if existing_order:
-        raise HTTPException(status_code=409, detail="您已有相同航班的待處理訂單")
+        raise_error(409, "您已有相同航班的待處理訂單")
 
     base_price = round(flight.calculate_final_price(category, schedule["departureDate"]))
     tax = round(base_price * 0.1)
@@ -172,21 +173,21 @@ async def create_flight_order(data: dict, user_id: str):
 async def cancel_order(order_id: str, user_id: str):
     order = await FlightOrder.get(order_id)
     if not order:
-        raise HTTPException(status_code=404, detail="找不到該訂單")
+        raise_error(404, "找不到該訂單")
 
     if order.userId != user_id:
-        raise HTTPException(status_code=403, detail="無權限取消此訂單")
+        raise_error(403, "無權限取消此訂單")
 
     if order.status != "PENDING":
-        raise HTTPException(status_code=400, detail="只能取消待付款的訂單")
+        raise_error(400, "只能取消待付款的訂單")
 
     flight = await Flight.get(order.flightId)
     if not flight:
-        raise HTTPException(status_code=404, detail="找不到相關航班")
+        raise_error(404, "找不到相關航班")
 
     schedule = next((s for s in flight.schedules if str(s["_id"]) == order.scheduleId), None)
     if not schedule:
-        raise HTTPException(status_code=404, detail="找不到對應航班班次")
+        raise_error(404, "找不到對應航班班次")
 
     order.status = "CANCELLED"
     await order.save()
@@ -205,5 +206,5 @@ async def get_user_orders(user_id: str):
 async def get_order_detail(order_id: str):
     order = await FlightOrder.get(order_id)
     if not order:
-        raise HTTPException(status_code=404, detail="找不到該訂單")
+        raise_error(404, "找不到該訂單")
     return success(order)

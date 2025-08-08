@@ -5,7 +5,7 @@ from app.models.hotel import Hotel
 from app.models.room import Room
 from app.models.user import User
 from app.utils.response import success
-from app.utils.error_message import ErrorMessage
+from app.utils.error_handler import raise_error
 from typing import Dict, Optional
 
 
@@ -19,7 +19,7 @@ async def list_orders():
 async def get_order(order_id: str):
     order = await Order.get(order_id, fetch_links=True)
     if not order:
-        raise HTTPException(status_code=404, detail=ErrorMessage.ORDER_NOT_FOUND)
+        raise_error(404, '訂單找不到')
     return success(order)
 
 
@@ -30,7 +30,7 @@ async def create_order(data: Dict, user: User):
     total_price = data.get("totalPrice")
 
     if not hotel_id or not room_id or not total_price:
-        raise HTTPException(status_code=400, detail=ErrorMessage.REQUIRED_FIELDS_MISSING)
+        raise_error(400, '缺少必填字段')
 
     # 檢查是否已有相同尚未完成的訂單
     existing = await Order.find({
@@ -41,15 +41,15 @@ async def create_order(data: Dict, user: User):
     }).to_list()
 
     if existing:
-        raise HTTPException(status_code=400, detail="此房型尚有未完成訂單")
+        raise_error(400, "此房型尚有未完成訂單")
 
     hotel = await Hotel.get(hotel_id)
     if not hotel:
-        raise HTTPException(status_code=404, detail="Hotel not found")
+        raise_error(404, "飯店找不到")
 
     room = await Room.get(room_id)
     if not room:
-        raise HTTPException(status_code=404, detail="Room not found")
+        raise_error(404, "房型找不到")
 
     service_fee = total_price * 0.10
     total_price_with_fee = total_price + service_fee
@@ -68,7 +68,7 @@ async def create_order(data: Dict, user: User):
 async def update_order(order_id: str, data: Dict):
     order = await Order.get(order_id)
     if not order:
-        raise HTTPException(status_code=404, detail=ErrorMessage.ORDER_NOT_FOUND)
+        raise_error(404, '訂單找不到')
 
     for k, v in data.items():
         setattr(order, k, v)
@@ -80,7 +80,7 @@ async def update_order(order_id: str, data: Dict):
 async def delete_order(order_id: str):
     order = await Order.get(order_id)
     if not order:
-        raise HTTPException(status_code=404, detail=ErrorMessage.ORDER_NOT_FOUND)
+        raise_error(404, '訂單找不到')
 
     await order.delete()
     return success(message="訂單刪除成功")

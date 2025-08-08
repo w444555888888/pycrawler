@@ -1,6 +1,7 @@
 from fastapi import HTTPException
 from app.models.hotel import Hotel
 from app.utils.response import success
+from app.utils.error_handler import raise_error
 from typing import Optional
 from datetime import datetime
 
@@ -32,7 +33,7 @@ async def list_hotels(
 
     hotels = await Hotel.find(query).to_list()
     if not hotels:
-        raise HTTPException(status_code=404, detail="找不到符合條件的飯店")
+        raise_error(404, "找不到符合條件的飯店")
 
     parsed_start = parse_date(start_date) if start_date else None
     parsed_end = parse_date(end_date) if end_date else None
@@ -77,13 +78,13 @@ async def list_hotels(
 async def get_hotel(hotel_id: str):
     hotel = await Hotel.get(hotel_id)
     if not hotel:
-        raise HTTPException(status_code=404, detail="Hotel not found")
+        raise_error(404, "找不到該飯店")
     return success(hotel)
 
 
 async def get_hotel_name_suggestions(name: str):
     if not name.strip():
-        raise HTTPException(status_code=400, detail="請輸入搜尋名稱")
+        raise_error(400, "請輸入搜尋名稱")
 
     hotels = await Hotel.find({
         "name": {"$regex": name, "$options": "i"}
@@ -106,7 +107,7 @@ async def create_hotel(data):
 async def update_hotel(hotel_id: str, data):
     hotel = await Hotel.get(hotel_id)
     if not hotel:
-        raise HTTPException(status_code=404, detail="Hotel not found")
+        raise_error(404, "找不到該飯店")
     for k, v in data.items():
         setattr(hotel, k, v)
     await hotel.save()
@@ -116,6 +117,6 @@ async def update_hotel(hotel_id: str, data):
 async def delete_hotel(hotel_id: str):
     hotel = await Hotel.get(hotel_id)
     if not hotel:
-        raise HTTPException(status_code=404, detail="Hotel not found")
+        raise_error(404, "找不到該飯店")
     await hotel.delete()
     return success()

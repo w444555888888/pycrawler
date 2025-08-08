@@ -1,16 +1,18 @@
 # app/main.py
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from app.utils.error_handler import raise_error 
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 import logging
 
 from app.core.config import settings
-from app.routes import hotels, rooms, auth, users
+from app.routes import hotels, rooms, users, auth, order, flight, captcha
 from app.db import init_db
+from app.utils.error_handler import http_error_handler, validation_exception_handler
 
 app = FastAPI(title="Hotel Booking API")
 
+# 啟動時初始化 DB
 @app.on_event("startup")
 async def on_startup():
     await init_db()
@@ -24,50 +26,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 路由註冊（保留原有路由）
+# 路由註冊
 app.include_router(hotels.router, prefix="/api/v1/hotels")
 app.include_router(rooms.router, prefix="/api/v1/rooms")
-app.include_router(auth.router, prefix="/api/v1/auth")
 app.include_router(users.router, prefix="/api/v1/users")
+app.include_router(auth.router, prefix="/api/v1/auth")
+app.include_router(order.router, prefix="/api/v1/order")
+app.include_router(flight.router, prefix="/api/v1/flight")
+app.include_router(captcha.router, prefix="/api/v1/captcha")
 
+# 統一錯誤格式處理器
+app.add_exception_handler(HTTPException, http_error_handler)
+app.add_exception_handler(RequestValidationError, validation_exception_handler)
 
-#  HTTPException 統一格式處理
-@app.exception_handler(HTTPException)
-async def http_exception_handler(request: Request, exc: HTTPException):
-    if isinstance(exc.detail, dict):
-        return JSONResponse(
-            status_code=exc.status_code,
-            content={
-                "code": exc.status_code,
-                "message": exc.detail.get("message", "錯誤"),
-                "details": exc.detail.get("details", None)
-            },
-        )
-    else:
-        return JSONResponse(
-            status_code=exc.status_code,
-            content={
-                "code": exc.status_code,
-                "message": str(exc.detail)
-            },
-        )
-    
-
-
-#  驗證錯誤格式統一
-@app.exception_handler(RequestValidationError)
-async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    return JSONResponse(
-        status_code=422,
-        content={
-            "code": 422,
-            "message": "參數錯誤",
-            "details": exc.errors()
-        },
-    )
-
-
-# 捕捉所有未處理的錯誤（最後保底）
+# 捕捉所有未處理的錯誤（兜底）
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     logging.exception("Unhandled exception: %s", str(exc))
