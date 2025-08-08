@@ -1,5 +1,6 @@
 from fastapi import HTTPException, Request, Response
 from app.models.user import User
+from app.utils.email_service import send_reset_email
 from app.utils.response import success
 from app.utils.error_handler import raise_error
 from passlib.hash import bcrypt
@@ -67,7 +68,6 @@ async def login(data: dict, response: Response):
 
 
 async def forgot_password(data: dict):
-    from app.services.email_service import send_reset_email  # optional service
     user = await User.find_one(User.email == data["email"])
     if not user:
         raise_error(404, "沒有此信箱的使用者")
