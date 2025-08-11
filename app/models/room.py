@@ -38,8 +38,8 @@ class Room(Document):
     pricing: List[WeekdayPricing] = Field(..., alias="pricing")
     holidays: List[HolidayPricing] = Field(..., alias="holidays")
 
-    created_at: Optional[datetime] = Field(default_factory=datetime.utcnow, alias="createdAt")
-    updated_at: Optional[datetime] = Field(default_factory=datetime.utcnow, alias="updatedAt")
+    created_at: Optional[datetime] = Field(default_factory=datetime.now(timezone.utc), alias="createdAt")
+    updated_at: Optional[datetime] = Field(default_factory=datetime.now(timezone.utc), alias="updatedAt")
 
     class Settings:
         name = "rooms"

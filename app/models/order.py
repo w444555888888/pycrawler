@@ -31,8 +31,8 @@ class Order(Document):
     status: Literal['pending', 'confirmed', 'cancelled', 'completed'] = Field(default='pending', alias="status")
     payment: Payment = Field(default_factory=Payment, alias="payment")
 
-    created_at: Optional[datetime] = Field(default_factory=datetime.utcnow, alias="createdAt")
-    updated_at: Optional[datetime] = Field(default_factory=datetime.utcnow, alias="updatedAt")
+    created_at: Optional[datetime] = Field(default_factory=datetime.now(timezone.utc), alias="createdAt")
+    updated_at: Optional[datetime] = Field(default_factory=datetime.now(timezone.utc), alias="updatedAt")
 
     class Settings:
         name = "orders"
