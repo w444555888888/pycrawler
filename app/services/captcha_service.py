@@ -18,7 +18,7 @@ def init():
         "exp": datetime.now(timezone.utc) + timedelta(minutes=JWT_EXPIRE_MINUTES)
     }
     token = jwt.encode(payload, JWT_SECRET, algorithm="HS256")
-    return success({
+    return success(200, {
         "token": token,
         "targetX": x
     })
@@ -26,7 +26,7 @@ def init():
 # 滑塊驗證
 def check(data: dict):
     token = data.get("token")
-    user_x = data.get("x")
+    user_x = data.get("userX")
 
     if not token or user_x is None:
         raise_error(400, "請提供 token 與 x")
@@ -38,10 +38,10 @@ def check(data: dict):
             raise_error(400, "Token 格式錯誤")
 
         tolerance = 6
-        if abs(correct_x - user_x) >= tolerance:
+        if abs(int(correct_x) - user_x) < tolerance:
+            return success(200, {"passed": True}, "滑塊驗證成功")
+        else:
             raise_error(400, "滑塊驗證未通過")
-
-        return success(message="滑塊驗證成功")
 
     except ExpiredSignatureError:
         raise_error(401, "驗證失敗：Token 已過期")
