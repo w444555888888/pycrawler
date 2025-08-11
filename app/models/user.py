@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 from pydantic import EmailStr, Field
 from beanie import Document
@@ -24,4 +24,4 @@ class User(Document):
         name = "users"
 
     def update_timestamp(self):
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)

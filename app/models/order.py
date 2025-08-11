@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Literal, Optional
 from pydantic import BaseModel, Field
 from beanie import Document, PydanticObjectId
@@ -41,4 +41,4 @@ class Order(Document):
         allow_population_by_field_name = True
 
     def update_timestamp(self):
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)

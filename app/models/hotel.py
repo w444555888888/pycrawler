@@ -1,7 +1,7 @@
 from typing import Optional, List, Literal
 from pydantic import BaseModel, EmailStr, Field
 from beanie import Document
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 class Coordinates(BaseModel):
@@ -50,4 +50,4 @@ class Hotel(Document):
         allow_population_by_field_name = True  # 允許使用欄位名或 alias 存取
 
     def update_timestamp(self):
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)

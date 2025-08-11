@@ -1,5 +1,5 @@
 from fastapi import HTTPException
-from datetime import datetime
+from datetime import datetime, timezone
 from app.models.flight import Flight
 from app.models.flight_order import FlightOrder
 from app.utils.response import success

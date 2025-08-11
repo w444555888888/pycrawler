@@ -1,5 +1,5 @@
 from fastapi import HTTPException
-from datetime import datetime
+from datetime import datetime, timezone
 from app.models.order import Order
 from app.models.hotel import Hotel
 from app.models.room import Room
@@ -58,7 +58,7 @@ async def create_order(data: Dict, user: User):
         **data,
         userId=str(user.id),
         totalPrice=total_price_with_fee,
-        createdAt=datetime.utcnow()
+        createdAt=datetime.now(timezone.utc)
     )
     await order.insert()
     return success(order, code=201)

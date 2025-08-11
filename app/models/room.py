@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from typing import List, Literal, Optional
 from pydantic import BaseModel, Field
 from beanie import Document, PydanticObjectId
@@ -45,7 +45,7 @@ class Room(Document):
         name = "rooms"
 
     def update_timestamp(self):
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
 
     def calculate_total_price(self, start_date: str, end_date: str) -> float:
         total_price = 0.0

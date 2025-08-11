@@ -4,7 +4,7 @@ from app.utils.email_service import send_reset_email
 from app.utils.response import success
 from app.utils.error_handler import raise_error
 from passlib.hash import bcrypt
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 import jwt
 import os
 import secrets
@@ -28,7 +28,7 @@ def generate_token(user):
     payload = {
         "id": str(user.id),
         "isAdmin": getattr(user, "isAdmin", False),
-        "exp": datetime.utcnow() + timedelta(hours=JWT_EXPIRE_HOURS)
+        "exp": datetime.now(timezone.utc) + timedelta(hours=JWT_EXPIRE_HOURS)
     }
     return jwt.encode(payload, JWT_SECRET, algorithm="HS256")
 
@@ -74,7 +74,7 @@ async def forgot_password(data: dict):
     
     token = secrets.token_hex(16)
     user.resetPasswordToken = token
-    user.resetPasswordExpires = datetime.utcnow() + timedelta(hours=1)
+    user.resetPasswordExpires = datetime.now(timezone.utc) + timedelta(hours=1)
     await user.save()
 
     await send_reset_email(user.email, token)
@@ -84,7 +84,7 @@ async def forgot_password(data: dict):
 async def reset_password(token: str, new_password: str):
     user = await User.find_one({
         "resetPasswordToken": token,
-        "resetPasswordExpires": {"$gt": datetime.utcnow()}
+        "resetPasswordExpires": {"$gt": datetime.now(timezone.utc)}
     })
 
     if not user:

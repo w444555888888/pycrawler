@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional, Literal
 from pydantic import BaseModel, Field
 from beanie import Document, Indexed, before_event, Insert  
@@ -70,7 +70,7 @@ class Flight(Document):
             multiplier *= self.price_rules.holiday_multiplier
 
         # 早鳥
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         days_until = (departure_date - now).days
         if days_until >= self.price_rules.early_bird_discount.days_in_advance:
             multiplier *= self.price_rules.early_bird_discount.discount

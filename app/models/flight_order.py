@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional, Literal
 from pydantic import BaseModel, Field
 from beanie import Document, Indexed, PydanticObjectId
@@ -63,4 +63,4 @@ class FlightOrder(Document):
         }
 
     def update_timestamp(self):
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)

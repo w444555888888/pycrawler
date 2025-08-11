@@ -3,7 +3,7 @@ import os
 import jwt
 from fastapi import HTTPException
 from jwt import ExpiredSignatureError, InvalidTokenError
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from app.utils.response import success
 from app.utils.error_handler import raise_error
 
@@ -15,7 +15,7 @@ def init():
     x = random.randint(100, 180)  # 和原本 Node 相近的範圍
     payload = {
         "x": x,
-        "exp": datetime.utcnow() + timedelta(minutes=JWT_EXPIRE_MINUTES)
+        "exp": datetime.now(timezone.utc) + timedelta(minutes=JWT_EXPIRE_MINUTES)
     }
     token = jwt.encode(payload, JWT_SECRET, algorithm="HS256")
     return success({

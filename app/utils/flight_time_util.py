@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from app.utils.timezone import get_time_zone_by_city
 from dateutil import tz
 

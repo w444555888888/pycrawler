@@ -3,7 +3,7 @@ from app.models.hotel import Hotel
 from app.utils.response import success
 from app.utils.error_handler import raise_error
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 def parse_date(date_str: str) -> Optional[datetime]:
