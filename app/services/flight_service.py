@@ -1,5 +1,6 @@
 from fastapi import HTTPException
-from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
+from datetime import datetime, timezone, time
 from app.models.flight import Flight
 from app.models.flight_order import FlightOrder
 from app.utils.response import success
@@ -25,9 +26,10 @@ async def create_flight(data: dict):
     departure_city = route.get("departureCity")
     arrival_city = route.get("arrivalCity")
 
-    tz = get_time_zone_by_city(departure_city)
-    if not tz:
+    tz_name = get_time_zone_by_city(departure_city)
+    if not tz_name:
         raise_error(404, f"找不到城市時區資訊：{departure_city}")
+    tz = ZoneInfo(tz_name)
 
     duration = calculate_flight_duration(departure_city, arrival_city)
     if not duration:
@@ -37,10 +39,12 @@ async def create_flight(data: dict):
 
     fixed_schedules = []
     for s in schedules:
-        local_dt = datetime.fromisoformat(s["departureDate"])
+        local_naive = datetime.fromisoformat(s["departureDate"])   # 'YYYY-MM-DDTHH:mm:ss'
+        local_aware = local_naive.replace(tzinfo=tz)               # 指定為「出發城市當地時間」
+        utc_dt = local_aware.astimezone(timezone.utc)              # 轉成 UTC 存庫
         available_seats = {c["category"]: c["totalSeats"] for c in cabin_classes}
         fixed_schedules.append({
-            "departureDate": local_dt.astimezone(tz).astimezone(datetime.timezone.utc),
+            "departureDate": utc_dt,
             "availableSeats": available_seats
         })
 
@@ -79,13 +83,19 @@ async def update_flight(flight_id: str, data: dict):
         flight.route["arrivalCity"] = route["arrivalCity"]
 
     if schedules and flight.route.get("departureCity"):
-        tz = get_time_zone_by_city(flight.route["departureCity"])
+        tz_name = get_time_zone_by_city(flight.route["departureCity"])
+        if not tz_name:
+            raise_error(400, f"找不到城市時區資訊：{flight.route['departureCity']}")
+        tz = ZoneInfo(tz_name)
+
         updated_schedules = []
         for s in schedules:
-            local_dt = datetime.fromisoformat(s["departureDate"])
+            local_naive = datetime.fromisoformat(s["departureDate"])
+            local_aware = local_naive.replace(tzinfo=tz)
+            utc_dt = local_aware.astimezone(timezone.utc)
             available_seats = {c["category"]: c["totalSeats"] for c in flight.cabinClasses}
             updated_schedules.append({
-                "departureDate": local_dt.astimezone(tz).astimezone(datetime.timezone.utc),
+                "departureDate": utc_dt,
                 "availableSeats": available_seats
             })
         flight.schedules = updated_schedules
