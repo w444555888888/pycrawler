@@ -1,4 +1,5 @@
 from fastapi import HTTPException
+from beanie import PydanticObjectId
 from datetime import datetime, timezone
 from app.models.order import Order
 from app.models.hotel import Hotel
@@ -15,12 +16,20 @@ async def list_orders():
     return success(orders)
 
 
+
 # 根據 ID 取得單一訂單（含 hotel、room）
 async def get_order(order_id: str):
-    order = await Order.get(order_id, fetch_links=True)
+    try:
+        oid = PydanticObjectId(order_id)
+    except Exception:
+        raise_error(400, "訂單 id 格式不正確")
+
+    order = await Order.get(oid, fetch_links=True)  # ← 等同兩個 populate
     if not order:
-        raise_error(404, '訂單找不到')
-    return success(order)
+        raise_error(404, "訂單找不到")
+
+    return success(order.dict(by_alias=True, exclude_none=True))
+
 
 
 # 建立訂單（含檢查飯店、房型、是否重複）
@@ -64,6 +73,7 @@ async def create_order(data: Dict, user: User):
     return success(order, code=201)
 
 
+
 # 更新訂單（by id）
 async def update_order(order_id: str, data: Dict):
     order = await Order.get(order_id)
@@ -74,6 +84,7 @@ async def update_order(order_id: str, data: Dict):
         setattr(order, k, v)
     await order.save()
     return success(order)
+
 
 
 # 刪除訂單（by id）

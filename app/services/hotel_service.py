@@ -12,7 +12,23 @@ def parse_date(date_str: str) -> Optional[datetime]:
     except Exception:
         return None
 
+# 模糊搜尋飯店名稱(搜索框)    
+async def get_hotel_name_suggestions(name: str):
+    if not name.strip():
+        raise_error(400, "請輸入搜尋名稱")
 
+    hotels = await Hotel.find({
+        "name": {"$regex": name, "$options": "i"}
+    }, projection={"_id": 1, "name": 1}).limit(10).to_list()
+
+    return success(hotels)
+
+# 查詢熱門飯店
+async def get_popular_hotels():
+    hotels = await Hotel.find({"popularHotel": True}).to_list()
+    return success(hotels)    
+
+# 搜尋飯店資料(根據篩選條件)
 async def list_hotels(
     name: Optional[str] = None,
     hotel_id: Optional[str] = None,
@@ -75,6 +91,7 @@ async def list_hotels(
     return success(updated_hotels)
 
 
+# 獲取所有飯店資料（不帶任何過濾條件）
 async def get_hotel(hotel_id: str):
     hotel = await Hotel.get(hotel_id)
     if not hotel:
@@ -82,28 +99,13 @@ async def get_hotel(hotel_id: str):
     return success(hotel)
 
 
-async def get_hotel_name_suggestions(name: str):
-    if not name.strip():
-        raise_error(400, "請輸入搜尋名稱")
-
-    hotels = await Hotel.find({
-        "name": {"$regex": name, "$options": "i"}
-    }, projection={"_id": 1, "name": 1}).limit(10).to_list()
-
-    return success(hotels)
-
-
-async def get_popular_hotels():
-    hotels = await Hotel.find({"popularHotel": True}).to_list()
-    return success(hotels)
-
-
+# 新增飯店
 async def create_hotel(data):
     hotel = Hotel(**data)
     await hotel.insert()
     return success(hotel)
 
-
+# 更新飯店
 async def update_hotel(hotel_id: str, data):
     hotel = await Hotel.get(hotel_id)
     if not hotel:
@@ -113,7 +115,7 @@ async def update_hotel(hotel_id: str, data):
     await hotel.save()
     return success(hotel)
 
-
+# 刪除飯店
 async def delete_hotel(hotel_id: str):
     hotel = await Hotel.get(hotel_id)
     if not hotel:

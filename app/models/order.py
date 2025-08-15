@@ -1,9 +1,13 @@
 from datetime import datetime, timezone
-from typing import Literal, Optional
+from typing import Literal, Optional, TYPE_CHECKING
 from pydantic import BaseModel, Field
-from beanie import Document, PydanticObjectId
+from beanie import Document, Link, PydanticObjectId
 import secrets
 
+
+if TYPE_CHECKING:
+    from app.models.hotel import Hotel
+    from app.models.room  import Room
 
 class Payment(BaseModel):
     method: Literal['credit_card', 'paypal', 'bank_transfer', 'on_site_payment'] = Field(
@@ -21,9 +25,11 @@ class Payment(BaseModel):
 
 
 class Order(Document):
+    # Node 是 ref User；通常不需要 populate 使用者，使用ID
     user_id: PydanticObjectId = Field(..., alias="userId")
-    hotel_id: PydanticObjectId = Field(..., alias="hotelId")
-    room_id: PydanticObjectId = Field(..., alias="roomId")
+    # 等同 Node 的 ref 'Hotel' / 'Room'
+    hotel_id: Link["Hotel"] = Field(..., alias="hotelId")
+    room_id:  Link["Room"]  = Field(..., alias="roomId")
     check_in_date: datetime = Field(..., alias="checkInDate")
     check_out_date: datetime = Field(..., alias="checkOutDate")
     total_price: float = Field(..., alias="totalPrice")
