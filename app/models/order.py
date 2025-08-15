@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from typing import Literal, Optional, TYPE_CHECKING
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from beanie import Document, Link, PydanticObjectId
 import secrets
 
@@ -10,6 +10,7 @@ if TYPE_CHECKING:
     from app.models.room  import Room
 
 class Payment(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
     method: Literal['credit_card', 'paypal', 'bank_transfer', 'on_site_payment'] = Field(
         default='on_site_payment',
         alias="method"
@@ -25,6 +26,7 @@ class Payment(BaseModel):
 
 
 class Order(Document):
+    model_config = ConfigDict(populate_by_name=True)
     # Node 是 ref User；通常不需要 populate 使用者，使用ID
     user_id: PydanticObjectId = Field(..., alias="userId")
     # 等同 Node 的 ref 'Hotel' / 'Room'
@@ -42,9 +44,6 @@ class Order(Document):
 
     class Settings:
         name = "orders"
-
-    class Config:
-        allow_population_by_field_name = True
 
     def update_timestamp(self):
         self.updated_at = datetime.now(timezone.utc)

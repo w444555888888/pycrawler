@@ -22,12 +22,12 @@ async def get_user(user_id: str, current_user: User):
     all_flight_order = []
     for order in raw_flight_orders:
         flight = await order.flight_id.fetch()
-        order_data = order.dict()
+        order_data = order.model_dump(by_alias=True, exclude_none=True)
         order_data["route"] = flight.route if flight else None
         all_flight_order.append(order_data)
 
     return success({
-        **user.dict(),
+        **user.model_dump(by_alias=True, exclude_none=True),
         "allOrder": all_order,
         "allFightOrder": all_flight_order
     })

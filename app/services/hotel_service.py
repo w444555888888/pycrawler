@@ -67,11 +67,11 @@ async def list_hotels(
             if cheapest_price is None or price < cheapest_price:
                 cheapest_price = price
 
-            room_data = room.dict()
+            room_data = room.model_dump(by_alias=True, exclude_none=True)
             room_data["roomTotalPrice"] = price
             available_rooms.append(room_data)
 
-        hotel_data = hotel.dict()
+        hotel_data = hotel.model_dump(by_alias=True, exclude_none=True)
         hotel_data["availableRooms"] = available_rooms
         hotel_data["cheapestPrice"] = cheapest_price
         hotel_data["totalPrice"] = total_price

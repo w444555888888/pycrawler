@@ -28,7 +28,7 @@ async def get_order(order_id: str):
     if not order:
         raise_error(404, "訂單找不到")
 
-    return success(order.dict(by_alias=True, exclude_none=True))
+    return success(order.model_dump(by_alias=True, exclude_none=True))
 
 
 

@@ -1,15 +1,17 @@
 from typing import Optional, List, Literal
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, ConfigDict
 from beanie import Document
 from datetime import datetime, timezone
 
 
 class Coordinates(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
     latitude: float = Field(..., alias="latitude")
     longitude: float = Field(..., alias="longitude")
 
 
 class Facilities(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
     wifi: bool = Field(default=False, alias="wifi")
     parking: bool = Field(default=False, alias="parking")
     pool: bool = Field(default=False, alias="pool")
@@ -20,6 +22,7 @@ class Facilities(BaseModel):
 
 
 class Hotel(Document):
+    model_config = ConfigDict(populate_by_name=True)
     name: str = Field(..., alias="name")
     type: Literal['hotel', 'apartment', 'guesthouse', 'villa', 'hostel', 'motel', 'capsule', 'resort'] = Field(..., alias="type")
     city: str = Field(..., alias="city")
@@ -45,9 +48,6 @@ class Hotel(Document):
 
     class Settings:
         name = "hotels"
-
-    class Config:
-        allow_population_by_field_name = True  # 允許使用欄位名或 alias 存取
 
     def update_timestamp(self):
         self.updated_at = datetime.now(timezone.utc)

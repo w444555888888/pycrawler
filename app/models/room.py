@@ -1,33 +1,38 @@
 from datetime import datetime, timezone, timedelta
 from typing import List, Literal, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict 
 from beanie import Document, PydanticObjectId
 from dateutil.parser import parse as parse_date
 
 
 class Service(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
     parking: bool = Field(default=False, alias="parking")
     dinner: bool = Field(default=False, alias="dinner")
     breakfast: bool = Field(default=True, alias="breakfast")
 
 
 class PaymentOption(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
     type: Literal['credit_card', 'paypal', 'bank_transfer', 'on_site_payment'] = Field(..., alias="type")
     description: str = Field(..., alias="description")
     refundable: bool = Field(default=False, alias="refundable")
 
 
 class WeekdayPricing(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
     days_of_week: List[int] = Field(..., alias="days_of_week")
     price: float = Field(..., alias="price")
 
 
 class HolidayPricing(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
     date: str = Field(..., alias="date")  # e.g. "2025-12-25"
     price: float = Field(..., alias="price")
 
 
 class Room(Document):
+    model_config = ConfigDict(populate_by_name=True)
     title: str = Field(..., alias="title")
     desc: List[str] = Field(..., alias="desc")
     room_type: Literal['Single Room', 'Double Room', 'Twin Room', 'Family Room', 'Deluxe Room'] = Field(..., alias="roomType")

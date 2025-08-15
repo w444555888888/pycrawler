@@ -1,4 +1,5 @@
 from fastapi import HTTPException
+from typing import Optional, List
 from zoneinfo import ZoneInfo
 from datetime import datetime, timezone, time
 from app.models.flight import Flight
@@ -13,7 +14,7 @@ from app.utils.timezone import get_time_zone_by_city
 # 創建新航班
 async def create_flight(data: dict):
     flight_number = data.get("flightNumber")
-    existing = await Flight.find_one(Flight.flightNumber == flight_number)
+    existing = await Flight.find_one(Flight.flight_number == flight_number)
     if existing:
         raise_error(400, "flightNumber已存在")
 
@@ -31,7 +32,7 @@ async def create_flight(data: dict):
         raise_error(404, f"找不到城市時區資訊：{departure_city}")
     tz = ZoneInfo(tz_name)
 
-    duration = calculate_flight_duration(departure_city, arrival_city)
+    duration = await calculate_flight_duration(departure_city, arrival_city)
     if not duration:
         raise_error(400, "無法自動推算 flightDuration，請確認城市名稱是否正確")
 
@@ -67,8 +68,8 @@ async def update_flight(flight_id: str, data: dict):
     schedules = data.get("schedules")
 
     if "departureCity" in route:
-        tz = get_time_zone_by_city(route["departureCity"])
-        if not tz:
+        tz_name = get_time_zone_by_city(route["departureCity"])
+        if not tz_name :
             raise_error(400, f"找不到城市時區資訊：{route['departureCity']}")
         flight.route["departureCity"] = route["departureCity"]
 
@@ -76,7 +77,7 @@ async def update_flight(flight_id: str, data: dict):
         flight.cabinClasses = cabin_classes
 
     if route.get("departureCity") and route.get("arrivalCity"):
-        duration = calculate_flight_duration(route["departureCity"], route["arrivalCity"])
+        duration = await calculate_flight_duration(route["departureCity"], route["arrivalCity"])
         if not duration:
             raise_error(400, "無法自動推算 flightDuration，請確認城市名稱是否正確")
         flight.route["flightDuration"] = duration
@@ -148,8 +149,8 @@ async def list_flights(
 
         # 先用城市過濾，再在記憶體內以區間篩選 schedules
         flights: List[Flight] = await Flight.find(
-            (Flight.route.departureCity == departure_city) &
-            (Flight.route.arrivalCity == arrival_city)
+            (Flight.route.departure_city == departure_city) &
+            (Flight.route.arrival_city == arrival_city)
         ).to_list()
 
         result = []
@@ -157,7 +158,7 @@ async def list_flights(
             filtered = []
             for s in (f.schedules or []):
                 # 讀取 departureDate（兼容子模型或 dict）
-                dep = getattr(s, "departureDate", None)
+                dep = getattr(s, "departure_date", None)
                 if dep is None and isinstance(s, dict):
                     dep = s.get("departureDate")
                 if not isinstance(dep, datetime):
@@ -173,8 +174,8 @@ async def list_flights(
             if filtered:
                 result.append({
                     "_id": str(f.id),
-                    "flightNumber": f.flightNumber,
-                    "route": f.route,
+                    "flightNumber": f.flight_number,
+                    "route": f.route.model_dump(by_alias=True, exclude_none=True),
                     "schedules": filtered
                 })
 
@@ -187,8 +188,8 @@ async def list_flights(
         if f.schedules:
             result.append({
                 "_id": str(f.id),
-                "flightNumber": f.flightNumber,
-                "route": f.route,
+                "flightNumber": f.flight_number,
+                "route": f.route.model_dump(by_alias=True, exclude_none=True),
                 "schedules": f.schedules
             })
     return success(result)
@@ -245,7 +246,7 @@ async def get_flight(flight_id: str):
     return success({
         "_id": str(flight.id),
         "flightNumber": flight.flight_number,
-        "route": flight.route.model_dump(by_alias=True),  # camelCase: departureCity/arrivalCity/flightDuration
+        "route": flight.route.model_dump(by_alias=True, exclude_none=True),  # camelCase: departureCity/arrivalCity/flightDuration
         "schedules": formatted_schedules,
     })
 
@@ -304,7 +305,7 @@ async def create_flight_order(data: dict, user_id: str):
     if existing_order:
         raise_error(409, "您已有相同航班的待處理訂單")
 
-    base_price = round(flight.calculate_final_price(category, schedule["departureDate"]))
+    base_price = round(await flight.calculate_final_price(category, schedule["departureDate"]))
     tax = round(base_price * 0.1)
     total_price = round((base_price + tax) * len(passengers))
 

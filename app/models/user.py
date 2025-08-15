@@ -1,10 +1,11 @@
 from datetime import datetime, timezone
 from typing import Optional
-from pydantic import EmailStr, Field
+from pydantic import EmailStr, ConfigDict, Field
 from beanie import Document
 
 
 class User(Document):
+    model_config = ConfigDict(populate_by_name=True)
     username: str = Field(..., alias="username", unique=True)
     email: EmailStr = Field(..., alias="email", unique=True)
     password: str = Field(..., alias="password")  # hashed password
