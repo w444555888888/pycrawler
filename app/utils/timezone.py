@@ -20,7 +20,7 @@ _tf = TimezoneFinder()
 def _coords_by_city_sync(city_name: str) -> Optional[Tuple[float, float]]:
     """
     同步版：由城市名稱取得 (latitude, longitude)。
-    - 這是「同步 + 可快取」函式，本身會做網路 I/O，不要在事件迴圈中直接呼叫（請用下方 async 包裝）。
+    - 這是「同步 + 可快取」函式，本身會做網路 I/O，不要在事件迴圈中直接呼叫
     - 快取 1024 組輸入 → 輸出，可大幅降低對 Nominatim 的呼叫次數。
     回傳：
       - (lat, lng) 例如 (25.0375, 121.5637)
@@ -41,8 +41,24 @@ def _coords_by_city_sync(city_name: str) -> Optional[Tuple[float, float]]:
 async def get_coords_by_city(city_name: str) -> Optional[Tuple[float, float]]:
     """
     非阻塞版：把同步 geocode 丟到預設執行緒池跑，避免阻塞 FastAPI 事件迴圈。
+
+    # run_in_executor(executor, func, *args)
+    return await loop.run_in_executor(
+        None,                 # 第一個參數：executor
+                              # None = 使用預設的 ThreadPoolExecutor（背景執行緒池）
+
+        _coords_by_city_sync, # 第二個參數：func
+                              # 要執行的同步函式（這裡就是 _coords_by_city_sync）
+
+        city_name             # 第三個參數：*args
+                              # 傳給 func 的參數，等於呼叫 _coords_by_city_sync(city_name)
+    )
+
     回傳：
-      - (lat, lng) 或 None（與同步版本相同）
+      - (lat, lng): Tuple[float, float]
+        成功時回傳一個 tuple，包含經緯度，例如 (25.0375, 121.5637)。
+      - None
+        查不到或發生錯誤時回傳 None。
     """
     loop = asyncio.get_running_loop()
     return await loop.run_in_executor(None, _coords_by_city_sync, city_name)
