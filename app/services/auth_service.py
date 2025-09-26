@@ -42,7 +42,8 @@ async def register(data: dict):
     hashed_pwd = bcrypt.hash(data["password"])
     user = User(username=data["username"], email=data["email"], password=hashed_pwd)
     await user.insert()
-    return success(user.model_dump(by_alias=True, exclude_none=True))
+    return success(data=user.model_dump(by_alias=True, exclude_none=True), message="註冊成功")
+
 
 
 async def login(data: dict, response: Response):
