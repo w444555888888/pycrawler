@@ -1,8 +1,10 @@
-from typing import Optional, List, Literal
+from typing import Optional, List, Literal, TYPE_CHECKING
 from pydantic import BaseModel, EmailStr, Field, ConfigDict
-from beanie import Document
+from beanie import Document, Link
 from datetime import datetime, timezone
 
+if TYPE_CHECKING:
+    from app.models.room import Room
 
 class Coordinates(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
@@ -42,6 +44,8 @@ class Hotel(Document):
     email: EmailStr = Field(..., alias="email")
     nearby_attractions: List[str] = Field(..., alias="nearbyAttractions")
     phone: str = Field(..., alias="phone")
+    # 關聯房型（等同於 Node.js virtual populate）
+    rooms: Optional[List[Link["Room"]]] = None
 
     created_at: Optional[datetime] = Field(default_factory=datetime.now(timezone.utc), alias="createdAt")
     updated_at: Optional[datetime] = Field(default_factory=datetime.now(timezone.utc), alias="updatedAt")

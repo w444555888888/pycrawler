@@ -47,7 +47,8 @@ async def list_hotels(
     if popular:
         query["popularHotel"] = True
 
-    hotels = await Hotel.find(query).to_list()
+    # 等同於 Node.js 的 populate('rooms')
+    hotels = await Hotel.find(query).fetch_links().to_list()
     if not hotels:
         raise_error(404, "找不到符合條件的飯店")
 
