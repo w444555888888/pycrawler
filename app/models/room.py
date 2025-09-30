@@ -53,9 +53,16 @@ class Room(Document):
         self.updated_at = datetime.now(timezone.utc)
 
     def calculate_total_price(self, start_date: str, end_date: str) -> float:
+        """計算房型在指定日期區間的總價格"""
+        if not start_date or not end_date:
+            return 0.0
+    
         total_price = 0.0
         current_date = parse_date(start_date).date()
         end_date_obj = parse_date(end_date).date()
+
+        if current_date >= end_date_obj:
+            return 0.0
 
         while current_date < end_date_obj:
             date_str = current_date.isoformat()
