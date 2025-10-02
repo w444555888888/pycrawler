@@ -69,10 +69,20 @@ async def delete_user(user_id: str, current_user: User):
     return success(message="使用者已成功刪除")
 
 
+
 # 取得全部使用者（限管理員）
-async def get_all_users(current_user: User):
-    if not current_user.is_admin:
+async def get_all_users(current_user: dict):
+    if not current_user.get("isAdmin"):
         raise_error(403, "只有管理員可以查看全部使用者")
 
     users = await User.find_all().to_list()
-    return success(users)
+    # 把每個 User Document 轉成 dict（去掉密碼）
+    user_dicts = []
+    for u in users:
+        d = u.model_dump(by_alias=True, exclude_none=True)
+        d.pop("password", None)
+        user_dicts.append(d)
+        
+    return success(data=user_dicts)
+
+

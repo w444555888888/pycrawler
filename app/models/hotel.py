@@ -41,14 +41,16 @@ class Hotel(Document):
     check_in_time: str = Field(..., alias="checkInTime")
     check_out_time: str = Field(..., alias="checkOutTime")
     coordinates: Coordinates = Field(..., alias="coordinates")
-    email: EmailStr = Field(..., alias="email")
+    email: Optional[str] = Field(..., alias="email")
+    # email 欄位驗證 EmailStr 但因為資料庫有非@的 email，暫時改成 str
     nearby_attractions: List[str] = Field(..., alias="nearbyAttractions")
     phone: str = Field(..., alias="phone")
     # 關聯房型（等同於 Node.js virtual populate）
     rooms: Optional[List[Link["Room"]]] = None
 
-    created_at: Optional[datetime] = Field(default_factory=datetime.now(timezone.utc), alias="createdAt")
-    updated_at: Optional[datetime] = Field(default_factory=datetime.now(timezone.utc), alias="updatedAt")
+    created_at: Optional[datetime] = Field(default_factory=lambda: datetime.now(timezone.utc), alias="createdAt")
+    updated_at: Optional[datetime] = Field(default_factory=lambda: datetime.now(timezone.utc), alias="updatedAt")
+
 
     class Settings:
         name = "hotels"

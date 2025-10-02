@@ -4,6 +4,12 @@ from app.services import hotel_service
 
 router = APIRouter(tags=["hotels"])
 
+
+# 獲取所有飯店資料（不帶任何過濾條件）
+@router.get("")
+async def get_all_hotels():
+    return await hotel_service.get_all_hotels()
+
 #獲取搜尋飯店資訊
 @router.get("/search")
 async def list_hotels():

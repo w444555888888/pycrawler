@@ -6,11 +6,17 @@ from fastapi.responses import JSONResponse
 import logging
 
 from app.core.config import settings
+from app.models.hotel import Hotel
+from app.models.room import Room
 from app.routes import hotels, rooms, users, auth, order, flight, captcha
 from app.db import init_db
 from app.utils.error_handler import http_error_handler, validation_exception_handler
 
 app = FastAPI(title="Hotel Booking API")
+
+
+Hotel.model_rebuild()
+Room.model_rebuild()
 
 # 啟動時初始化 DB
 @app.on_event("startup")

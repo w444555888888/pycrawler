@@ -11,7 +11,7 @@ from app.models.user import User
 router = APIRouter(tags=["users"])
 
 #全部用戶資料
-@router.get("/")
+@router.get("")
 async def route_get_all_users(current_user: User = Depends(verify_token)):
     return await get_all_users(current_user)
 

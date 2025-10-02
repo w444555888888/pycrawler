@@ -27,7 +27,7 @@ def set_token_cookie(response: Response, token: str):
 def generate_token(user):
     payload = {
         "id": str(user.id),
-        "isAdmin": getattr(user, "isAdmin", False),
+        "isAdmin": getattr(user, "is_admin", False),
         "exp": datetime.now(timezone.utc) + timedelta(hours=JWT_EXPIRE_HOURS)
     }
     return jwt.encode(payload, JWT_SECRET, algorithm="HS256")
@@ -65,7 +65,10 @@ async def login(data: dict, response: Response):
 
     user_data = user.model_dump(by_alias=True, exclude_none=True)
     user_data.pop("password", None)
-    return success({"userDetails": user_data})
+    return success(
+    data={"userDetails": user_data},
+    cookies={"JWT_token": token}
+)
 
 
 async def forgot_password(data: dict):
@@ -102,7 +105,7 @@ def me(request: Request):
     user = getattr(request.state, "user", None)
     if not user:
         raise_error(401, "尚未登入")
-    return success(user)
+    return success(data={"user": user})
 
 
 def logout(response: Response):
@@ -118,6 +121,7 @@ def verify_token(request: Request):
     try:
         decoded = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
         request.state.user = decoded
+        return decoded
     except jwt.ExpiredSignatureError:
         raise_error(403, "登入已過期，請重新登入")
     except jwt.PyJWTError:
