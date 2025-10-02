@@ -6,12 +6,6 @@ from typing import Optional
 from datetime import datetime, timezone
 
 
-def parse_date(date_str: str) -> Optional[datetime]:
-    try:
-        return datetime.strptime(date_str, "%Y-%m-%d")
-    except Exception:
-        return None
-
 # 模糊搜尋飯店名稱(搜索框)    
 async def get_hotel_name_suggestions(name: str):
     if not name.strip():
@@ -51,9 +45,6 @@ async def list_hotels(
     hotels = await Hotel.find(query).fetch_links().to_list()
     if not hotels:
         raise_error(404, "找不到符合條件的飯店")
-
-    parsed_start = parse_date(start_date) if start_date else None
-    parsed_end = parse_date(end_date) if end_date else None
 
     updated_hotels = []
     for hotel in hotels:
