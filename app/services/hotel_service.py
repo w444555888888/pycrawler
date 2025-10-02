@@ -99,7 +99,7 @@ async def get_hotel(hotel_id: str):
     hotel = await Hotel.get(hotel_id)
     if not hotel:
         raise_error(404, "找不到該飯店")
-    return success(hotel)
+    return success(data=hotel)
 
 
 # 新增飯店

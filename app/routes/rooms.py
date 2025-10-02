@@ -22,7 +22,7 @@ async def route_get_room(room_id: str):
     return await get_room(room_id)
 
 # 根據飯店 ID 獲取該飯店下所有房型
-@router.get("/by-hotel/{hotel_id}")
+@router.get("/findHotel/{hotel_id}")
 async def route_list_rooms_by_hotel(hotel_id: str):
     return await list_rooms_by_hotel(hotel_id)
 

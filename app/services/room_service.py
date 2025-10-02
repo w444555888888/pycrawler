@@ -1,4 +1,5 @@
 from typing import Optional
+from beanie import PydanticObjectId
 from app.models.room import Room
 from app.models.hotel import Hotel
 from app.utils.response import success
@@ -59,8 +60,9 @@ async def list_rooms_by_hotel(hotel_id: str):
     if not hotel:
         raise_error(404, "找不到該飯店")
 
-    rooms = await Room.find(Room.hotel_id == hotel_id).to_list()
-    return success(rooms)
+    rooms = await Room.find(Room.hotel_id == PydanticObjectId(hotel_id)).to_list()
+    room_dicts = [r.model_dump(by_alias=True, exclude_none=True) for r in rooms]
+    return success(data=room_dicts)
 
 
 # 計算房價
