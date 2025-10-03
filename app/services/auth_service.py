@@ -42,7 +42,7 @@ async def register(data: dict):
     hashed_pwd = bcrypt.hash(data["password"])
     user = User(username=data["username"], email=data["email"], password=hashed_pwd)
     await user.insert()
-    return success(data=user.model_dump(by_alias=True, exclude_none=True), message="註冊成功")
+    return success(data=user, message="註冊成功", exclude_fields=["password"])
 
 
 
@@ -63,12 +63,11 @@ async def login(data: dict, response: Response):
     token = generate_token(user)
     set_token_cookie(response, token)
 
-    user_data = user.model_dump(by_alias=True, exclude_none=True)
-    user_data.pop("password", None)
     return success(
-    data={"userDetails": user_data},
-    cookies={"JWT_token": token}
-)
+        data={"userDetails": user},
+        cookies={"JWT_token": token},
+        exclude_fields=["password"]
+    )
 
 
 async def forgot_password(data: dict):
@@ -105,6 +104,7 @@ def me(request: Request):
     user = getattr(request.state, "user", None)
     if not user:
         raise_error(401, "尚未登入")
+    # 注意：這裡的 user 不是完整 DB user，而是 JWT decode 的 payload
     return success(data={"user": user})
 
 

@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 # 獲取所有飯店資料（不帶任何過濾條件）
 async def get_all_hotels():
     hotels = await Hotel.find_all().to_list()
-    return success(data=hotels, exclude_fields=["password"])
+    return success(data=hotels)
 
 
 # 模糊搜尋飯店名稱(搜索框)    
@@ -26,7 +26,8 @@ async def get_hotel_name_suggestions(name: str):
 # 查詢熱門飯店
 async def get_popular_hotels():
     hotels = await Hotel.find({"popularHotel": True}).to_list()
-    return success(hotels)    
+    return success(data=hotels)   
+
 
 # 搜尋飯店資料(根據篩選條件)
 async def list_hotels(
@@ -86,10 +87,10 @@ async def list_hotels(
             filtered_hotels.append(hotel)
         updated_hotels = filtered_hotels
 
-    return success(updated_hotels)
+    return success(data=updated_hotels)
 
 
-# 獲取所有飯店資料（不帶任何過濾條件）
+# 取得單一飯店
 async def get_hotel(hotel_id: str):
     hotel = await Hotel.get(hotel_id)
     if not hotel:
@@ -101,17 +102,21 @@ async def get_hotel(hotel_id: str):
 async def create_hotel(data):
     hotel = Hotel(**data)
     await hotel.insert()
-    return success(hotel)
+    return success(data=hotel)
 
 # 更新飯店
-async def update_hotel(hotel_id: str, data):
+async def update_hotel(hotel_id: str, data: dict):
     hotel = await Hotel.get(hotel_id)
     if not hotel:
         raise_error(404, "找不到該飯店")
-    for k, v in data.items():
+
+    update_data = Hotel.model_validate(data).model_dump(exclude_unset=True)
+    for k, v in update_data.items():
         setattr(hotel, k, v)
+
     await hotel.save()
-    return success(hotel)
+    return success(data=hotel)
+
 
 # 刪除飯店
 async def delete_hotel(hotel_id: str):
@@ -119,4 +124,4 @@ async def delete_hotel(hotel_id: str):
     if not hotel:
         raise_error(404, "找不到該飯店")
     await hotel.delete()
-    return success()
+    return success(message="刪除成功")

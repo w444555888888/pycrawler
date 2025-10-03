@@ -1,8 +1,9 @@
 from fastapi import HTTPException
 from typing import Optional, List
+from beanie import PydanticObjectId
 from zoneinfo import ZoneInfo
 from datetime import datetime, timezone, time
-from app.models.flight import Flight
+from app.models.flight import Flight, CabinClass, Schedule, Route
 from app.models.flight_order import FlightOrder
 from app.utils.response import success
 from app.utils.error_handler import raise_error
@@ -49,11 +50,16 @@ async def create_flight(data: dict):
             "availableSeats": available_seats
         })
 
-    flight = Flight(**data)
-    flight.route = route
-    flight.schedules = fixed_schedules
+    flight_data = {
+        **data,
+        "route": route,
+        "schedules": fixed_schedules,
+        "cabinClasses": cabin_classes
+    }    
+
+    flight = Flight.model_validate(flight_data) 
     await flight.insert()
-    return success(flight)
+    return success(data=flight)
 
 
 
@@ -71,22 +77,23 @@ async def update_flight(flight_id: str, data: dict):
         tz_name = get_time_zone_by_city(route["departureCity"])
         if not tz_name :
             raise_error(400, f"找不到城市時區資訊：{route['departureCity']}")
-        flight.route["departureCity"] = route["departureCity"]
+        flight.route.departure_city = route["departureCity"]  # 子模型存取 (Route)，要用 snake_case 屬性
 
     if cabin_classes:
-        flight.cabinClasses = cabin_classes
+        # 這裡 cabin_classes 還是前端傳來的 dict，所以要轉成 CabinClass 模型
+        flight.cabin_classes = [CabinClass(**c) for c in cabin_classes]
 
     if route.get("departureCity") and route.get("arrivalCity"):
         duration = await calculate_flight_duration(route["departureCity"], route["arrivalCity"])
         if not duration:
             raise_error(400, "無法自動推算 flightDuration，請確認城市名稱是否正確")
-        flight.route["flightDuration"] = duration
-        flight.route["arrivalCity"] = route["arrivalCity"]
+        flight.route.flight_duration = duration
+        flight.route.arrival_city = route["arrivalCity"]
 
-    if schedules and flight.route.get("departureCity"):
-        tz_name = get_time_zone_by_city(flight.route["departureCity"])
+    if schedules and flight.route.departure_city:
+        tz_name = get_time_zone_by_city(flight.route.departure_city)
         if not tz_name:
-            raise_error(400, f"找不到城市時區資訊：{flight.route['departureCity']}")
+            raise_error(400, f"找不到城市時區資訊：{flight.route.departure_city}")
         tz = ZoneInfo(tz_name)
 
         updated_schedules = []
@@ -94,7 +101,8 @@ async def update_flight(flight_id: str, data: dict):
             local_naive = datetime.fromisoformat(s["departureDate"])
             local_aware = local_naive.replace(tzinfo=tz)
             utc_dt = local_aware.astimezone(timezone.utc)
-            available_seats = {c["category"]: c["totalSeats"] for c in flight.cabinClasses}
+            # flight.cabin_classes 已經是 CabinClass 模型列表
+            available_seats = {c.category: c.total_seats for c in flight.cabin_classes}
             updated_schedules.append({
                 "departureDate": utc_dt,
                 "availableSeats": available_seats
@@ -102,7 +110,7 @@ async def update_flight(flight_id: str, data: dict):
         flight.schedules = updated_schedules
 
     await flight.save()
-    return success(flight)
+    return success(data=flight)
 
 
 
@@ -192,7 +200,7 @@ async def list_flights(
                 "route": f.route.model_dump(by_alias=True, exclude_none=True),
                 "schedules": f.schedules
             })
-    return success(result)
+    return success(data=result)
 
 
 # 獲取單個航班詳情
@@ -243,7 +251,7 @@ async def get_flight(flight_id: str):
             "prices": prices,
         })
 
-    return success({
+    return success(data={
         "_id": str(flight.id),
         "flightNumber": flight.flight_number,
         "route": flight.route.model_dump(by_alias=True, exclude_none=True),  # camelCase: departureCity/arrivalCity/flightDuration
@@ -258,7 +266,7 @@ async def delete_flight(flight_id: str):
     if not flight:
         raise_error(404, "找不到該航班")
     await flight.delete()
-    return success(flight)
+    return success(message="刪除成功")
 
 
 
@@ -269,46 +277,53 @@ async def delete_flight(flight_id: str):
 async def get_all_flight_orders():
     try:
         orders = await FlightOrder.find_all().to_list()
-        return success(orders)
+        return success(data=orders)
     except Exception:
         raise_error(500, "獲取機票訂單失敗")
 
-# 創建航班訂單
+
+# 創建航班訂單 
 async def create_flight_order(data: dict, user_id: str):
     from uuid import uuid4
 
     flight_id = data.get("flightId")
     category = data.get("category")
-    schedule_id = data.get("scheduleId")
     passengers = data.get("passengerInfo")
 
-    if not all([flight_id, category, schedule_id, passengers]):
+    if not all([flight_id, category, passengers]):
         raise_error(400, "缺少必要的訂單信息")
 
+    # 找航班
     flight = await Flight.get(flight_id)
     if not flight:
         raise_error(404, "找不到該航班")
 
-    schedule = next((s for s in flight.schedules if str(s["_id"]) == schedule_id), None)
-    if not schedule:
-        raise_error(404, "找不到該航班班次")
+    if not flight.schedules:
+        raise_error(404, "該航班沒有班次")
 
-    if schedule["availableSeats"].get(category, 0) < len(passengers):
+    # 沒有 scheduleId → 預設用第一個班次
+    schedule = flight.schedules[0]
+
+    # 檢查座位
+    if schedule.available_seats.get(category, 0) < len(passengers):
         raise_error(400, "座位數量不足")
 
+    # 檢查是否已有相同待處理的訂單（比對 flightId + userId + category）
     existing_order = await FlightOrder.find_one({
         "userId": user_id,
         "flightId": flight_id,
-        "scheduleId": schedule_id,
+        "category": category,
         "status": "PENDING"
     })
     if existing_order:
         raise_error(409, "您已有相同航班的待處理訂單")
 
-    base_price = round(await flight.calculate_final_price(category, schedule["departureDate"]))
+    # 計算價格
+    base_price = round(await flight.calculate_final_price(category, schedule.departure_date))
     tax = round(base_price * 0.1)
     total_price = round((base_price + tax) * len(passengers))
 
+    # 訂單編號
     order_number = f"FO{str(uuid4()).split('-')[0]}"
 
     order = FlightOrder(
@@ -317,7 +332,7 @@ async def create_flight_order(data: dict, user_id: str):
         orderNumber=order_number,
         passengerInfo=passengers,
         category=category,
-        scheduleId=schedule_id,
+        scheduleId=str(getattr(schedule, "id", None) or getattr(schedule, "_id", None) or 0),  
         price={
             "basePrice": base_price,
             "tax": tax,
@@ -326,17 +341,19 @@ async def create_flight_order(data: dict, user_id: str):
     )
     await order.insert()
 
-    # update seat
-    schedule["availableSeats"][category] -= len(passengers)
+    # 更新座位
+    schedule.available_seats[category] -= len(passengers)
     await flight.save()
 
-    return success(order)
+    return success(data=order)
+
+
 
 
 # 獲取用戶的所有訂單
 async def get_user_orders(user_id: str):
-    orders = await FlightOrder.find(FlightOrder.userId == user_id).to_list()
-    return success(orders)
+    orders = await FlightOrder.find(FlightOrder.userId == PydanticObjectId(user_id)).to_list()
+    return success(data=orders)
 
 
 # 獲取訂單詳情
@@ -344,7 +361,7 @@ async def get_order_detail(order_id: str):
     order = await FlightOrder.get(order_id)
     if not order:
         raise_error(404, "找不到該訂單")
-    return success(order)
+    return success(data=order)
 
 
 # 取消訂單
@@ -373,4 +390,4 @@ async def cancel_order(order_id: str, user_id: str):
     schedule["availableSeats"][order.category] += len(order.passengerInfo)
     await flight.save()
 
-    return success(order)
+    return success(data=order)

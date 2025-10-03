@@ -1,7 +1,7 @@
 from datetime import datetime, timezone, timedelta
 from typing import List, Optional, Literal
 from pydantic import BaseModel, Field, ConfigDict
-from beanie import Document, Indexed, before_event, Insert, Replace 
+from beanie import Document, PydanticObjectId, Indexed, before_event, Insert, Replace 
 from app.utils.flight_time_util import calculate_arrival_date
 
 
@@ -35,10 +35,11 @@ class PriceRules(BaseModel):
 
 class Schedule(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
+    id: PydanticObjectId = Field(default_factory=PydanticObjectId, alias="_id")
     departure_date: datetime = Field(alias="departureDate")
     arrival_date: Optional[datetime] = Field(default=None, alias="arrivalDate")
     available_seats: dict[str, int] = Field(alias="availableSeats")
-    prices: dict[str, float]
+    prices: dict[str, float] = Field(default_factory=dict)
 
 
 class Route(BaseModel):
@@ -110,7 +111,7 @@ class Flight(Document):
                 dep = dep.replace(tzinfo=timezone.utc) if dep.tzinfo is None else dep.astimezone(timezone.utc)
 
             # 計算抵達時間（轉為 UTC）
-            arr = await calculate_arrival_date(
+            arr =  calculate_arrival_date(
                 dep,
                 self.route.flight_duration,
                 self.route.departure_city,

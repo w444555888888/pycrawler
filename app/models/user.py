@@ -18,8 +18,8 @@ class User(Document):
     reset_password_token: Optional[str] = Field(default=None, alias="resetPasswordToken")
     reset_password_expires: Optional[datetime] = Field(default=None, alias="resetPasswordExpires")
 
-    created_at: Optional[datetime] = Field(default_factory=datetime.now(timezone.utc), alias="createdAt")
-    updated_at: Optional[datetime] = Field(default_factory=datetime.now(timezone.utc), alias="updatedAt")
+    created_at: Optional[datetime] = Field(default_factory=lambda: datetime.now(timezone.utc), alias="createdAt")
+    updated_at: Optional[datetime] = Field(default_factory=lambda: datetime.now(timezone.utc), alias="updatedAt")
 
     class Settings:
         name = "users"

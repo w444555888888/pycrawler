@@ -12,7 +12,7 @@ from app.services.room_service import (
 router = APIRouter(tags=["rooms"])
 
 # 取得所有房型列表
-@router.get("/")
+@router.get("")
 async def route_list_rooms():
     return await list_rooms()
 
@@ -27,17 +27,17 @@ async def route_list_rooms_by_hotel(hotel_id: str):
     return await list_rooms_by_hotel(hotel_id)
 
 # 新增一筆房型資料
-@router.post("/add")
+@router.post("")
 async def route_create_room(data: dict):
     return await create_room(data)
 
 # 編輯特定房型資料（根據 room_id）
-@router.put("/edit/{room_id}")
+@router.put("/{room_id}")
 async def route_update_room(room_id: str, data: dict):
     return await update_room(room_id, data)
 
 # 刪除特定房型資料（根據 room_id(node版本沒有)
-@router.delete("/delete/{room_id}")
+@router.delete("/{room_id}")
 async def route_delete_room(room_id: str):
     return await delete_room(room_id)
 

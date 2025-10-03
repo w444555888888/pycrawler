@@ -44,6 +44,6 @@ async def route_me(request: Request):
 
 
 @router.post("/logout")
-async def route_logout(request: Request):
+async def route_logout(request: Request, response: Response):
     verify_token(request)  # 先驗證，再執行 logout
-    return logout()
+    return logout(response)

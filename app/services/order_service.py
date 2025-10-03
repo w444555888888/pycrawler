@@ -13,7 +13,7 @@ from typing import Dict, Optional
 # 取得全部訂單
 async def list_orders():
     orders = await Order.find_all().to_list()
-    return success(orders)
+    return success(data=orders)
 
 
 
@@ -28,7 +28,7 @@ async def get_order(order_id: str):
     if not order:
         raise_error(404, "訂單找不到")
 
-    return success(order.model_dump(by_alias=True, exclude_none=True))
+    return success(data=order)
 
 
 
@@ -70,7 +70,7 @@ async def create_order(data: Dict, user: User):
         createdAt=datetime.now(timezone.utc)
     )
     await order.insert()
-    return success(order, code=201)
+    return success(data=order, code=201)
 
 
 
@@ -83,7 +83,7 @@ async def update_order(order_id: str, data: Dict):
     for k, v in data.items():
         setattr(order, k, v)
     await order.save()
-    return success(order)
+    return success(data=order)
 
 
 
