@@ -304,7 +304,6 @@ async def create_flight_order(data: dict, user_id: str):
 
     # 找航班
     flight = await Flight.get(flight_oid)
-    print("找到 flight:", flight)
     if not flight:
         raise_error(404, "找不到該航班")
 
@@ -315,10 +314,8 @@ async def create_flight_order(data: dict, user_id: str):
     schedule = next((s for s in flight.schedules if str(s.id) == str(schedule_oid)), None)
     if not schedule:
         raise_error(404, f"找不到對應的班次 scheduleId={schedule_id}")
-    print("實際使用的 schedule.id =", schedule.id)
 
     # 檢查座位
-    print("座位狀態:", schedule.available_seats)
     if schedule.available_seats.get(category, 0) < len(passengers):
         raise_error(400, "座位數量不足")
 
