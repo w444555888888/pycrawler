@@ -61,8 +61,7 @@ async def list_rooms_by_hotel(hotel_id: str):
         raise_error(404, "找不到該飯店")
 
     rooms = await Room.find(Room.hotel_id == PydanticObjectId(hotel_id)).to_list()
-    room_dicts = [r.model_dump(by_alias=True, exclude_none=True) for r in rooms]
-    return success(data=room_dicts)
+    return success(data=rooms)
 
 
 # 計算房價

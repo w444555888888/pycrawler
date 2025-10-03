@@ -9,12 +9,7 @@ from datetime import datetime, timezone
 # 獲取所有飯店資料（不帶任何過濾條件）
 async def get_all_hotels():
     hotels = await Hotel.find_all().to_list()
-    hotel_dicts = []
-    for h in hotels:
-        d = h.model_dump(by_alias=True, exclude_none=True)
-        d.pop("password", None)  # 如果有敏感欄位就刪掉
-        hotel_dicts.append(d)
-    return success(data=hotel_dicts)
+    return success(data=hotels, exclude_fields=["password"])
 
 
 # 模糊搜尋飯店名稱(搜索框)    
