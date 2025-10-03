@@ -45,7 +45,7 @@ class FlightOrder(Document):
     updated_at: Optional[datetime] = Field(default_factory=lambda: datetime.now(timezone.utc), alias="updatedAt")
 
     class Settings:
-        name = "flight_orders"
+        name = "flightorders"
 
     def update_timestamp(self):
         self.updated_at = datetime.now(timezone.utc)

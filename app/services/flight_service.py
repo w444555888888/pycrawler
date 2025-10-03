@@ -289,32 +289,50 @@ async def create_flight_order(data: dict, user_id: str):
     flight_id = data.get("flightId")
     category = data.get("category")
     passengers = data.get("passengerInfo")
+    schedule_id = data.get("scheduleId")
+
+    # 確保轉成 ObjectId
+    try:
+        flight_oid = PydanticObjectId(flight_id)
+        user_oid = PydanticObjectId(user_id)
+        schedule_oid = PydanticObjectId(schedule_id)
+    except Exception:
+        raise_error(400, f"無效的 ObjectId: flightId={flight_id}, scheduleId={schedule_id}, userId={user_id}")
 
     if not all([flight_id, category, passengers]):
         raise_error(400, "缺少必要的訂單信息")
 
     # 找航班
-    flight = await Flight.get(flight_id)
+    flight = await Flight.get(flight_oid)
+    print("找到 flight:", flight)
     if not flight:
         raise_error(404, "找不到該航班")
 
     if not flight.schedules:
         raise_error(404, "該航班沒有班次")
 
-    # 沒有 scheduleId → 預設用第一個班次
-    schedule = flight.schedules[0]
+    # 找到對應的 schedule
+    schedule = next((s for s in flight.schedules if str(s.id) == str(schedule_oid)), None)
+    if not schedule:
+        raise_error(404, f"找不到對應的班次 scheduleId={schedule_id}")
+    print("實際使用的 schedule.id =", schedule.id)
 
     # 檢查座位
+    print("座位狀態:", schedule.available_seats)
     if schedule.available_seats.get(category, 0) < len(passengers):
         raise_error(400, "座位數量不足")
 
-    # 檢查是否已有相同待處理的訂單（比對 flightId + userId + category）
-    existing_order = await FlightOrder.find_one({
-        "userId": user_id,
-        "flightId": flight_id,
+    # 檢查是否已有相同待處理的訂單
+    query = {
+        "userId": user_oid,
+        "flightId": flight_oid,
         "category": category,
+        "scheduleId": schedule_oid,
         "status": "PENDING"
-    })
+    }
+
+    existing_order = await FlightOrder.find_one(query)
+
     if existing_order:
         raise_error(409, "您已有相同航班的待處理訂單")
 
@@ -327,12 +345,12 @@ async def create_flight_order(data: dict, user_id: str):
     order_number = f"FO{str(uuid4()).split('-')[0]}"
 
     order = FlightOrder(
-        userId=user_id,
-        flightId=flight_id,
+        userId=user_oid,         
+        flightId=flight_oid,      
         orderNumber=order_number,
         passengerInfo=passengers,
         category=category,
-        scheduleId=str(getattr(schedule, "id", None) or getattr(schedule, "_id", None) or 0),  
+        scheduleId=schedule_oid, 
         price={
             "basePrice": base_price,
             "tax": tax,
@@ -341,11 +359,8 @@ async def create_flight_order(data: dict, user_id: str):
     )
     await order.insert()
 
-    # 更新座位
-    schedule.available_seats[category] -= len(passengers)
-    await flight.save()
 
-    return success(data=order)
+
 
 
 
