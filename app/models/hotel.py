@@ -46,7 +46,7 @@ class Hotel(Document):
     nearby_attractions: List[str] = Field(..., alias="nearbyAttractions")
     phone: str = Field(..., alias="phone")
     # 關聯房型（等同於 Node.js virtual populate）
-    rooms: Optional[List[Link["Room"]]] = None
+    rooms: Optional[List[Link["Room"]]] = Field(default_factory=list)
 
     created_at: Optional[datetime] = Field(default_factory=lambda: datetime.now(timezone.utc), alias="createdAt")
     updated_at: Optional[datetime] = Field(default_factory=lambda: datetime.now(timezone.utc), alias="updatedAt")

@@ -3,6 +3,7 @@ from typing import List, Literal, Optional
 from pydantic import BaseModel, Field, ConfigDict 
 from beanie import Document, PydanticObjectId
 from dateutil.parser import parse as parse_date
+from app.models.hotel import Hotel
 
 
 class Service(BaseModel):
@@ -35,7 +36,7 @@ class Room(Document):
     model_config = ConfigDict(populate_by_name=True)
     title: str = Field(..., alias="title")
     desc: List[str] = Field(..., alias="desc")
-    room_type: Literal['Single Room', 'Double Room', 'Twin Room', 'Family Room', 'Deluxe Room'] = Field(..., alias="roomType")
+    room_type: Literal['Single Room', 'Double Room', 'Twin Room', 'Family Room', 'Deluxe Room', 'Triple Room'] = Field(..., alias="roomType")
     max_people: int = Field(..., alias="maxPeople")
     service: Service = Field(default_factory=Service, alias="service")
     hotel_id: PydanticObjectId = Field(..., alias="hotelId")
@@ -52,34 +53,66 @@ class Room(Document):
     def update_timestamp(self):
         self.updated_at = datetime.now(timezone.utc)
 
+
     def calculate_total_price(self, start_date: str, end_date: str) -> float:
         """計算房型在指定日期區間的總價格"""
         if not start_date or not end_date:
+            print("缺少日期參數")
             return 0.0
-    
+
         total_price = 0.0
         current_date = parse_date(start_date).date()
         end_date_obj = parse_date(end_date).date()
-
         if current_date >= end_date_obj:
+            print("起訖日期不合法")
             return 0.0
 
         while current_date < end_date_obj:
             date_str = current_date.isoformat()
-            day_of_week = current_date.weekday()
+            node_day = (current_date.weekday() + 1) % 7  # Python週一=0 → Node週日=0
+            # print(f"📆 {date_str} (Node週={node_day})")
 
-            # 節假日價格優先
-            holiday_price = next((h.price for h in self.holidays if h.date == date_str), None)
+            # 假日優先
+            holiday_price = None
+            for h in self.holidays or []:
+                if isinstance(h, dict):
+                    date_val, price_val = h.get("date"), h.get("price")
+                else:
+                    date_val, price_val = getattr(h, "date", None), getattr(h, "price", None)
+
+                if date_val == date_str:
+                    holiday_price = float(price_val.get("$numberInt", price_val)) if isinstance(price_val, dict) else float(price_val)
+                    break
 
             if holiday_price is not None:
                 total_price += holiday_price
             else:
-                # 找對應的平日價格
-                for p in self.pricing:
-                    if day_of_week in p.days_of_week:
-                        total_price += p.price
+                found = False
+                for p in self.pricing or []:
+                    raw_days = p.get("days_of_week", []) if isinstance(p, dict) else getattr(p, "days_of_week", [])
+                    normalized_days = [
+                        int(d["$numberInt"]) if isinstance(d, dict) and "$numberInt" in d else int(d)
+                        for d in raw_days or []
+                    ]
+                    price_val = p.get("price") if isinstance(p, dict) else getattr(p, "price", None)
+                    price_value = float(price_val.get("$numberInt", price_val)) if isinstance(price_val, dict) else float(price_val or 0)
+
+                    if node_day in normalized_days:
+                        total_price += price_value
+                        found = True
                         break
+
+                if not found:
+                    print(f"無匹配價格，略過")
 
             current_date += timedelta(days=1)
 
+        print(f"總金額: {total_price}\n")
         return total_price
+
+
+
+
+
+
+

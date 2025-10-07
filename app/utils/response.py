@@ -1,5 +1,5 @@
 import json
-from bson import ObjectId
+from bson import ObjectId, DBRef
 from beanie import PydanticObjectId
 from pydantic import BaseModel
 from datetime import datetime
@@ -16,6 +16,8 @@ class CustomJSONResponse(JSONResponse):
 
     @staticmethod
     def json_encoder(obj):
+        if isinstance(obj, DBRef):
+            return str(obj.id)
         if isinstance(obj, (ObjectId, PydanticObjectId)):
             return str(obj)
         if isinstance(obj, datetime):
@@ -28,6 +30,27 @@ class CustomJSONResponse(JSONResponse):
         if hasattr(obj, "__str__"):
             return str(obj)
         raise TypeError(f"Object of type {obj.__class__.__name__} is not JSON serializable")
+
+
+
+# 遞迴排除敏感欄位
+def exclude_keys_recursive(obj, exclude_fields: list[str]):
+    if isinstance(obj, BaseModel):
+        obj = obj.model_dump(by_alias=True, exclude_none=True)
+
+    if isinstance(obj, dict):
+        return {
+            k: exclude_keys_recursive(v, exclude_fields)
+            for k, v in obj.items()
+            if k not in exclude_fields
+        }
+
+    elif isinstance(obj, list):
+        return [exclude_keys_recursive(v, exclude_fields) for v in obj]
+
+    else:
+        return obj
+
 
 
 def success(
@@ -63,36 +86,25 @@ def success(
     """
      
     if data is not None:
-        if isinstance(data, list):
-            processed = []
+        if isinstance(data, BaseModel):
+            data = data.model_dump(by_alias=True, exclude_none=True)
+        elif isinstance(data, list):
+            tmp = []
             for item in data:
                 if isinstance(item, BaseModel):
-                    d = item.model_dump(by_alias=True, exclude_none=True)
+                    tmp.append(item.model_dump(by_alias=True, exclude_none=True))
                 elif isinstance(item, dict):
-                    d = item.copy()
+                    tmp.append(item.copy())
                 else:
-                    processed.append(item)
-                    continue
-
-                if exclude_fields:
-                    for f in exclude_fields:
-                        d.pop(f, None)
-                processed.append(d)
-            data = processed
-
-        elif isinstance(data, BaseModel):
-            d = data.model_dump(by_alias=True, exclude_none=True)
-            if exclude_fields:
-                for f in exclude_fields:
-                    d.pop(f, None)
-            data = d
-
+                    tmp.append(item)
+            data = tmp
         elif isinstance(data, dict):
-            d = data.copy()
-            if exclude_fields:
-                for f in exclude_fields:
-                    d.pop(f, None)
-            data = d
+            data = data.copy()
+
+        # 遞迴排除敏感欄位
+        if exclude_fields:
+            data = exclude_keys_recursive(data, exclude_fields)
+
 
     resp = CustomJSONResponse(
         status_code=status,

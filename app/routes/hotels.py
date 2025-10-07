@@ -1,5 +1,6 @@
 # app/routes/hotels.py
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
+from typing import Optional
 from app.services import hotel_service
 
 router = APIRouter(tags=["hotels"])
@@ -10,10 +11,29 @@ router = APIRouter(tags=["hotels"])
 async def get_all_hotels():
     return await hotel_service.get_all_hotels()
 
+
+
 #獲取搜尋飯店資訊
 @router.get("/search")
-async def list_hotels():
-    return await hotel_service.list_hotels()
+async def list_hotels(
+    name: Optional[str] = Query(None),
+    hotel_id: Optional[str] = Query(None, alias="hotelId"),
+    popular: Optional[bool] = Query(None),
+    min_price: Optional[float] = Query(None, alias="minPrice"),
+    max_price: Optional[float] = Query(None, alias="maxPrice"),
+    start_date: Optional[str] = Query(None, alias="startDate"),
+    end_date: Optional[str] = Query(None, alias="endDate"),
+):
+
+    return await hotel_service.list_hotels(
+        name=name,
+        hotel_id=hotel_id,
+        popular=popular,
+        min_price=min_price,
+        max_price=max_price,
+        start_date=start_date,
+        end_date=end_date,
+    )
 
 #獲取熱門飯店資訊 給首頁、精選區塊用
 @router.get("/popular")

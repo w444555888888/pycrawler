@@ -75,12 +75,3 @@ async def list_rooms_by_hotel(hotel_id: str):
     rooms = await Room.find(Room.hotel_id == PydanticObjectId(hotel_id)).to_list()
     return success(data=rooms)
 
-
-# 計算房價
-async def calculate_room_price(room_id: str, start_date: str, end_date: str):
-    room = await Room.get(room_id)
-    if not room:
-        raise_error(404, "找不到該房型")
-
-    total_price = room.calculate_total_price(start_date, end_date)
-    return success(data={"totalPrice": total_price})

@@ -5,8 +5,7 @@ from app.services.room_service import (
     list_rooms_by_hotel,  
     create_room,           
     update_room,           
-    delete_room,           
-    calculate_room_price   
+    delete_room            
 )
 
 router = APIRouter(tags=["rooms"])
@@ -40,8 +39,3 @@ async def route_update_room(room_id: str, data: dict):
 @router.delete("/{room_id}")
 async def route_delete_room(room_id: str):
     return await delete_room(room_id)
-
-# 計算房型在指定日期區間的總價格(node版本沒有)
-@router.get("/calculate-price/{room_id}")
-async def route_calculate_room_price(room_id: str, start_date: str, end_date: str):
-    return await calculate_room_price(room_id, start_date, end_date)
